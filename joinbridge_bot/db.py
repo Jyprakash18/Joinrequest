@@ -60,18 +60,23 @@ class Database:
     def __init__(self, path: str):
         self.path = path
 
-    async def connect(self) -> aiosqlite.Connection:
+        @asynccontextmanager
+    async def connect(self):
         conn = await aiosqlite.connect(self.path)
         conn.row_factory = aiosqlite.Row
-        return conn
+        try:
+            yield conn
+        finally:
+            await conn.close()
+
 
     async def init(self) -> None:
-        async with await self.connect() as conn:
+        async with self.connect() as conn:
             await conn.executescript(SCHEMA)
             await conn.commit()
 
     async def upsert_source_chat(self, chat_id: int, title: str, username: str | None, delivery_mode: str) -> None:
-        async with await self.connect() as conn:
+        async with self.connect() as conn:
             await conn.execute(
                 """
                 INSERT INTO source_chats (chat_id, title, username, delivery_mode)
@@ -87,7 +92,7 @@ class Database:
             await conn.commit()
 
     async def set_delivery_mode(self, chat_id: int, mode: str) -> None:
-        async with await self.connect() as conn:
+        async with self.connect() as conn:
             await conn.execute(
                 "UPDATE source_chats SET delivery_mode = ?, updated_at = CURRENT_TIMESTAMP WHERE chat_id = ?",
                 (mode, chat_id),
@@ -95,7 +100,7 @@ class Database:
             await conn.commit()
 
     async def set_latest_message(self, chat_id: int, message_chat_id: int, message_id: int, note: str | None) -> None:
-        async with await self.connect() as conn:
+        async with self.connect() as conn:
             await conn.execute(
                 """
                 UPDATE source_chats
@@ -107,12 +112,12 @@ class Database:
             await conn.commit()
 
     async def get_source_chat(self, chat_id: int):
-        async with await self.connect() as conn:
+        async with self.connect() as conn:
             cursor = await conn.execute("SELECT * FROM source_chats WHERE chat_id = ?", (chat_id,))
             return await cursor.fetchone()
 
     async def upsert_user(self, user_id: int, user_chat_id: int | None, username: str | None, first_name: str | None, last_name: str | None, bot_started: bool = False) -> None:
-        async with await self.connect() as conn:
+        async with self.connect() as conn:
             await conn.execute(
                 """
                 INSERT INTO users (user_id, user_chat_id, username, first_name, last_name, is_bot_started)
@@ -130,12 +135,12 @@ class Database:
             await conn.commit()
 
     async def mark_blocked(self, user_id: int) -> None:
-        async with await self.connect() as conn:
+        async with self.connect() as conn:
             await conn.execute("UPDATE users SET is_blocked = 1, last_seen_at = CURRENT_TIMESTAMP WHERE user_id = ?", (user_id,))
             await conn.commit()
 
     async def log_join_event(self, source_chat_id: int, user_id: int, user_chat_id: int, dm_status: str, approval_status: str, message_id_sent: int | None) -> None:
-        async with await self.connect() as conn:
+        async with self.connect() as conn:
             await conn.execute(
                 """
                 INSERT INTO join_events (source_chat_id, user_id, user_chat_id, dm_status, approval_status, message_id_sent)
@@ -146,7 +151,7 @@ class Database:
             await conn.commit()
 
     async def get_global_stats(self) -> dict:
-        async with await self.connect() as conn:
+        async with self.connect() as conn:
             queries = {
                 "total_source_chats": "SELECT COUNT(*) FROM source_chats",
                 "total_users": "SELECT COUNT(*) FROM users",
