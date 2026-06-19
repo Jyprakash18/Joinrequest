@@ -54,13 +54,7 @@ CREATE TABLE IF NOT EXISTS broadcasts (
 CREATE INDEX IF NOT EXISTS idx_join_events_chat ON join_events(source_chat_id);
 CREATE INDEX IF NOT EXISTS idx_join_events_user ON join_events(user_id);
 """
-
-
 class Database:
-    def __init__(self, path: str):
-        self.path = path
-
-        class Database:
     def __init__(self, path: str):
         self.path = path
 
@@ -73,10 +67,10 @@ class Database:
         finally:
             await conn.close()
 
+
     async def init(self) -> None:
         async with self.connect() as conn:
             # baaki ka code...
-
             await conn.executescript(SCHEMA)
             await conn.commit()
 
