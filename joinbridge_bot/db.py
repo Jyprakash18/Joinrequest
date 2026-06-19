@@ -60,7 +60,11 @@ class Database:
     def __init__(self, path: str):
         self.path = path
 
-        @asynccontextmanager
+        class Database:
+    def __init__(self, path: str):
+        self.path = path
+
+    @asynccontextmanager
     async def connect(self):
         conn = await aiosqlite.connect(self.path)
         conn.row_factory = aiosqlite.Row
@@ -69,9 +73,10 @@ class Database:
         finally:
             await conn.close()
 
-
     async def init(self) -> None:
         async with self.connect() as conn:
+            # baaki ka code...
+
             await conn.executescript(SCHEMA)
             await conn.commit()
 
